@@ -3,25 +3,23 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
-  <meta name="apple-mobile-web-app-capable" content="yes" />
-  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
-  <title>Knight's Quest</title>
+  <title>Knight's Quest - Chess Queen’s Club</title>
   <style>
     body {
       margin: 0;
       padding: 0;
-      background: #1a1a2e;
-      color: white;
+      background: #fef6e4;
+      color: #001858;
       font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
       text-align: center;
     }
     h1 {
-      color: #f1c40f;
+      color: #f582ae;
       font-size: 2em;
       margin-top: 1em;
     }
     #board {
-      margin: 2em auto;
+      margin: 1em auto;
       display: grid;
       grid-template-columns: repeat(8, 1fr);
       width: 90vmin;
@@ -32,56 +30,104 @@
     .square {
       position: relative;
       width: 100%;
-      background-color: #d2b48c;
+      background-color: #d8e2dc;
     }
     .square.dark {
-      background-color: #8b4513;
+      background-color: #a9def9;
     }
     .knight, .goal, .obstacle {
       position: absolute;
       width: 100%;
       height: 100%;
     }
-    .knight {
-      background-color: #3498db;
-      border-radius: 50%;
-    }
-    .goal {
-      background-color: #f1c40f;
-      border-radius: 10%;
-    }
+    .knight { background-color: #ff8fab; border-radius: 50%; }
+    .goal { background-color: #ffc300; border-radius: 10%; }
     .obstacle {
-      background-color: #e74c3c;
+      background-color: #ff595e;
       clip-path: polygon(50% 0%, 100% 100%, 0% 100%);
     }
-    #message {
-      margin-top: 1em;
-      font-size: 1.2em;
+    #message, #scoreboard {
+      font-size: 1em;
+      margin: 0.5em;
     }
     button {
-      margin-top: 1em;
+      margin: 0.5em;
       padding: 10px 20px;
       font-size: 1em;
-      background-color: #3498db;
+      background-color: #8ecae6;
       border: none;
       border-radius: 5px;
-      color: white;
+      color: #023047;
+    }
+    .branding {
+      margin-top: 1em;
+      font-size: 0.9em;
+      color: #555;
+    }
+    #leaderboard {
+      margin-top: 1em;
+      font-size: 0.9em;
+    }
+    canvas#confetti {
+      position: fixed;
+      top: 0; left: 0;
+      width: 100vw;
+      height: 100vh;
+      pointer-events: none;
+      z-index: 9999;
     }
   </style>
 </head>
 <body>
   <h1>Knight's Quest</h1>
+  <div id="scoreboard">
+    Level: <span id="level">Easy</span> |
+    Moves: <span id="moves">0</span> |
+    Time: <span id="time">0</span>s |
+    Score: <span id="score">0</span>
+  </div>
+  <div>
+    <button onclick="setDifficulty('Easy')">Easy</button>
+    <button onclick="setDifficulty('Medium')">Medium</button>
+    <button onclick="setDifficulty('Hard')">Hard</button>
+    <button onclick="resetGame()">Restart</button>
+  </div>
   <div id="board"></div>
-  <div id="message">Help the knight reach the golden square!</div>
-  <button onclick="resetGame()">Restart</button>
+  <div id="message">Tap a square to move the Knight!</div>
+  <div class="branding">Powered by Chess Queen’s Club ♛</div>
+  <div id="leaderboard"><strong>Top Scores:</strong><ul id="topScores"></ul></div>
+  <canvas id="confetti"></canvas>
+  <audio id="moveSound" src="https://actions.google.com/sounds/v1/cartoon/cartoon_boing.ogg"></audio>
+  <audio id="winSound" src="https://actions.google.com/sounds/v1/alarms/digital_watch_alarm_long.ogg"></audio>
+  <audio id="errorSound" src="https://actions.google.com/sounds/v1/cartoon/cartoon_cowbell.ogg"></audio>
   <script>
     const board = document.getElementById('board');
     const message = document.getElementById('message');
+    const levelLabel = document.getElementById('level');
+    const movesDisplay = document.getElementById('moves');
+    const timeDisplay = document.getElementById('time');
+    const scoreDisplay = document.getElementById('score');
+    const topScoresList = document.getElementById('topScores');
+    const moveSound = document.getElementById('moveSound');
+    const winSound = document.getElementById('winSound');
+    const errorSound = document.getElementById('errorSound');
+
     const boardSize = 8;
-    const knightMoves = [[2,1], [2,-1], [-2,1], [-2,-1], [1,2], [1,-2], [-1,2], [-1,-2]];
+    const knightMoves = [[2,1],[2,-1],[-2,1],[-2,-1],[1,2],[1,-2],[-1,2],[-1,-2]];
     let knightPos = [0, 0];
     const goalPos = [7, 7];
     const obstacles = new Set();
+    let moveCount = 0;
+    let timer = 0;
+    let interval = null;
+    let score = 0;
+    let difficulty = 'Easy';
+
+    function setDifficulty(level) {
+      difficulty = level;
+      levelLabel.textContent = level;
+      resetGame();
+    }
 
     function createBoard() {
       board.innerHTML = '';
@@ -123,21 +169,32 @@
     function isValidMove(targetX, targetY) {
       const dx = targetX - knightPos[0];
       const dy = targetY - knightPos[1];
-      const isLegal = knightMoves.some(([mx, my]) => mx === dx && my === dy);
-      return isLegal && !obstacles.has(`${targetX},${targetY}`);
+      const legal = knightMoves.some(([mx, my]) => mx === dx && my === dy);
+      return legal && !obstacles.has(`${targetX},${targetY}`);
     }
 
     function moveKnight(x, y) {
       if (!isValidMove(x, y)) {
-        message.textContent = "Oops! Knights move in L-shapes!";
+        errorSound.play();
+        message.textContent = "Try again! Knights move in L-shapes!";
         return;
       }
       knightPos = [x, y];
+      moveCount++;
+      score -= 2;
+      updateUI();
       placeElements();
+      moveSound.play();
       if (x === goalPos[0] && y === goalPos[1]) {
-        message.textContent = "Well done! You reached the goal!";
+        clearInterval(interval);
+        score += 100 - timer;
+        winSound.play();
+        message.textContent = "Bravo! You made it!";
+        saveScore(score);
+        launchConfetti();
+        updateLeaderboard();
       } else {
-        message.textContent = "Good move! Keep going!";
+        message.textContent = "Great move!";
       }
     }
 
@@ -151,7 +208,8 @@
 
     function generateObstacles() {
       obstacles.clear();
-      while (obstacles.size < 10) {
+      let count = difficulty === 'Easy' ? 5 : difficulty === 'Medium' ? 10 : 15;
+      while (obstacles.size < count) {
         const x = Math.floor(Math.random() * boardSize);
         const y = Math.floor(Math.random() * boardSize);
         const posStr = `${x},${y}`;
@@ -161,16 +219,78 @@
       }
     }
 
+    function updateUI() {
+      movesDisplay.textContent = moveCount;
+      timeDisplay.textContent = timer;
+      scoreDisplay.textContent = Math.max(0, score);
+    }
+
     function resetGame() {
+      clearInterval(interval);
       knightPos = [0, 0];
+      moveCount = 0;
+      timer = 0;
+      score = 0;
+      updateUI();
       generateObstacles();
       createBoard();
       placeElements();
       message.textContent = "Help the knight reach the golden square!";
+      interval = setInterval(() => {
+        timer++;
+        updateUI();
+      }, 1000);
+    }
+
+    function saveScore(newScore) {
+      let scores = JSON.parse(localStorage.getItem('knightScores')) || [];
+      scores.push({ score: newScore, date: new Date().toLocaleString() });
+      scores.sort((a, b) => b.score - a.score);
+      localStorage.setItem('knightScores', JSON.stringify(scores.slice(0, 5)));
+    }
+
+    function updateLeaderboard() {
+      let scores = JSON.parse(localStorage.getItem('knightScores')) || [];
+      topScoresList.innerHTML = '';
+      scores.forEach(s => {
+        const li = document.createElement('li');
+        li.textContent = `${s.score} pts — ${s.date}`;
+        topScoresList.appendChild(li);
+      });
+    }
+
+    function launchConfetti() {
+      const canvas = document.getElementById('confetti');
+      const ctx = canvas.getContext('2d');
+      canvas.width = window.innerWidth;
+      canvas.height = window.innerHeight;
+      const pieces = Array.from({ length: 100 }, () => ({
+        x: Math.random() * canvas.width,
+        y: Math.random() * canvas.height - canvas.height,
+        dx: (Math.random() - 0.5) * 2,
+        dy: Math.random() * 3 + 2,
+        size: Math.random() * 6 + 4,
+        color: `hsl(${Math.random() * 360}, 100%, 70%)`
+      }));
+      let frame = 0;
+      function draw() {
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        pieces.forEach(p => {
+          ctx.fillStyle = p.color;
+          ctx.fillRect(p.x, p.y, p.size, p.size);
+          p.x += p.dx;
+          p.y += p.dy;
+          if (p.y > canvas.height) p.y = -10;
+        });
+        if (frame++ < 150) requestAnimationFrame(draw);
+        else ctx.clearRect(0, 0, canvas.width, canvas.height);
+      }
+      draw();
     }
 
     board.addEventListener('click', handleClick);
     resetGame();
+    updateLeaderboard();
   </script>
 </body>
 </html>
