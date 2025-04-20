@@ -1,15 +1,147 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <!-- Keep the same CSS styles from previous version -->
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Knight's Quest</title>
     <style>
-        /* ... (same CSS styles as before) ... */
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: #1a1a2e;
+            color: white;
+            height: 100vh;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+        }
+
+        #game-container {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            max-width: 100vh;
+            margin: 0 auto;
+            width: 100%;
+        }
+
+        #board-container {
+            position: relative;
+            width: 100%;
+            padding-bottom: 100%;
+        }
+
+        #board {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            display: grid;
+            grid-template-columns: repeat(8, 1fr);
+            grid-template-rows: repeat(8, 1fr);
+            gap: 1px;
+            background: #000;
+        }
+
+        .square {
+            background: #d2b48c;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            position: relative;
+        }
+
+        .square.dark {
+            background: #8b4513;
+        }
+
+        .knight {
+            width: 70%;
+            height: 70%;
+            background: #3498db;
+            border-radius: 50%;
+            box-shadow: 0 0 10px rgba(0,0,0,0.5);
+            position: relative;
+        }
+
+        .knight::after {
+            content: '';
+            position: absolute;
+            width: 50%;
+            height: 50%;
+            background: white;
+            border-radius: 50%;
+            top: 25%;
+            left: 25%;
+        }
+
+        .goal {
+            width: 50%;
+            height: 50%;
+            background: #f1c40f;
+            border-radius: 5px;
+        }
+
+        .obstacle {
+            width: 60%;
+            height: 60%;
+            clip-path: polygon(50% 0%, 100% 100%, 0% 100%);
+            background: #e74c3c;
+        }
+
+        #ui {
+            display: flex;
+            justify-content: space-between;
+            padding: 10px;
+            background: #16213e;
+            font-size: min(4vw, 18px);
+        }
+
+        .screen {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.8);
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            text-align: center;
+            padding: 20px;
+            z-index: 100;
+        }
+
+        .hidden {
+            display: none !important;
+        }
     </style>
 </head>
 <body>
-    <!-- Keep the same HTML structure -->
     <div id="game-container">
-        <!-- ... (same HTML as before) ... -->
+        <div id="ui">
+            <div>Time: <span id="time">0</span>s</div>
+            <div>Moves: <span id="moves">0</span></div>
+            <div>Level: <span id="level">1</span>/5</div>
+        </div>
+        
+        <div id="board-container">
+            <div id="board"></div>
+        </div>
+        
+        <div id="menu-screen" class="screen">
+            <h1>KNIGHT'S QUEST</h1>
+            <p>Help the knight reach the castle!</p>
+            <button id="start-btn">Start</button>
+        </div>
     </div>
 
     <script>
@@ -34,46 +166,92 @@
             createBoard();
             document.getElementById('start-btn').addEventListener('click', startGame);
             document.getElementById('board').addEventListener('click', handleBoardClick);
+            updateBoard(); // Initial render
         }
 
         function startGame() {
-            // Reset level if starting over
-            if(gameState.level === 1) {
-                gameState.moves = 0;
-                gameState.time = 0;
-            }
-            
-            // Clear existing timer
-            if(gameState.timer) clearInterval(gameState.timer);
-            
-            gameState.isPlaying = true;
+            // Reset game state
+            gameState = {
+                level: 1,
+                moves: 0,
+                time: 0,
+                knightPos: [0, 0],
+                goalPos: [7, 7],
+                obstacles: new Set(),
+                timer: null,
+                isPlaying: true
+            };
+
             document.getElementById('menu-screen').classList.add('hidden');
             setupLevel();
             
-            // Update UI
-            document.getElementById('level').textContent = gameState.level;
-            document.getElementById('moves').textContent = gameState.moves;
-            document.getElementById('time').textContent = gameState.time;
+            // Clear existing timer
+            if(gameState.timer) clearInterval(gameState.timer);
             
             // Start new timer
             gameState.timer = setInterval(() => {
                 gameState.time++;
                 document.getElementById('time').textContent = gameState.time;
             }, 1000);
+            
+            // Force UI update
+            updateBoard();
         }
 
         function setupLevel() {
-            // Reset knight position and clear obstacles
-            gameState.knightPos = [0, 0];
+            // Generate new obstacles
             gameState.obstacles.clear();
-            
-            // Generate new obstacles for current level
             while(gameState.obstacles.size < 5 + gameState.level * 2) {
                 const x = Math.floor(Math.random() * BOARD_SIZE);
                 const y = Math.floor(Math.random() * BOARD_SIZE);
-                if(x !== 0 || y !== 0) gameState.obstacles.add(`${x},${y}`);
+                if((x !== 0 || y !== 0) && (x !== 7 || y !== 7)) {
+                    gameState.obstacles.add(`${x},${y}`);
+                }
             }
             
+            // Reset positions
+            gameState.knightPos = [0, 0];
+            gameState.time = 0;
+            gameState.moves = 0;
+            
+            // Update UI
+            document.getElementById('level').textContent = gameState.level;
+            document.getElementById('moves').textContent = gameState.moves;
+            document.getElementById('time').textContent = gameState.time;
+            
+            updateBoard();
+        }
+
+        function handleBoardClick(e) {
+            if(!gameState.isPlaying) return;
+            
+            const square = e.target.closest('.square');
+            if(!square) return;
+            
+            const row = parseInt(square.dataset.row);
+            const col = parseInt(square.dataset.col);
+            const targetPos = [col, row];
+            
+            if(isValidMove(targetPos)) {
+                moveKnight(targetPos);
+            }
+        }
+
+        function isValidMove(target) {
+            return KNIGHT_MOVES.some(([dx, dy]) => 
+                gameState.knightPos[0] + dx === target[0] &&
+                gameState.knightPos[1] + dy === target[1]
+            ) && !gameState.obstacles.has(`${target[0]},${target[1]}`);
+        }
+
+        function moveKnight(target) {
+            gameState.moves++;
+            gameState.knightPos = target;
+            document.getElementById('moves').textContent = gameState.moves;
+            
+            if(target[0] === 7 && target[1] === 7) {
+                completeLevel();
+            }
             updateBoard();
         }
 
@@ -83,23 +261,53 @@
             
             if(gameState.level < 5) {
                 setTimeout(() => {
-                    alert(`Level ${gameState.level} Complete!`);
                     gameState.level++;
-                    startGame(); // Start next level
-                }, 100);
+                    gameState.isPlaying = true;
+                    setupLevel();
+                    gameState.timer = setInterval(() => {
+                        gameState.time++;
+                        document.getElementById('time').textContent = gameState.time;
+                    }, 1000);
+                }, 500);
             } else {
                 alert('Game Complete!');
-                gameState.level = 1; // Reset to level 1
+                gameState.level = 1;
                 document.getElementById('menu-screen').classList.remove('hidden');
             }
         }
 
-        // Keep the rest of the functions the same
-        function createBoard() { /* ... */ }
-        function handleBoardClick(e) { /* ... */ }
-        function isValidMove(target) { /* ... */ }
-        function moveKnight(target) { /* ... */ }
-        function updateBoard() { /* ... */ }
+        function updateBoard() {
+            document.querySelectorAll('.square').forEach(square => {
+                const col = parseInt(square.dataset.col);
+                const row = parseInt(square.dataset.row);
+                square.innerHTML = '';
+                
+                if(col === gameState.knightPos[0] && row === gameState.knightPos[1]) {
+                    square.innerHTML = '<div class="knight"></div>';
+                }
+                else if(col === 7 && row === 7) {
+                    square.innerHTML = '<div class="goal"></div>';
+                }
+                else if(gameState.obstacles.has(`${col},${row}`)) {
+                    square.innerHTML = '<div class="obstacle"></div>';
+                }
+            });
+        }
+
+        function createBoard() {
+            const board = document.getElementById('board');
+            board.innerHTML = '';
+            
+            for(let row = 0; row < BOARD_SIZE; row++) {
+                for(let col = 0; col < BOARD_SIZE; col++) {
+                    const square = document.createElement('div');
+                    square.className = `square ${(row + col) % 2 ? 'dark' : ''}`;
+                    square.dataset.row = row;
+                    square.dataset.col = col;
+                    board.appendChild(square);
+                }
+            }
+        }
 
         window.addEventListener('load', init);
     </script>
