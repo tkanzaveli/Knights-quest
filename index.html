@@ -23,20 +23,13 @@ button:hover{background:#2980b9}
 .goal::after{content:"🏰";font-size:1.9rem;position:absolute;top:18%;left:30%}
 .square[data-valid]::after{content:"";position:absolute;inset:40%;border-radius:50%;
   background:rgba(46,204,113,.7)}
-/* cartoon knight */
-.knight{animation:pop .25s ease}
-.knight::after{
-  content:"🐴";
-  position:absolute;top:8%;left:8%;
-  font-size:2.3rem;           /* auto‑scales with square */
-}
-/* smooth pop‑in */
+.knight{display:flex;align-items:center;justify-content:center;animation:pop .25s}
+.knight::after{content:"🐴";font-size:2.4rem;position:absolute;top:6%;left:6%}
 @keyframes pop{0%{transform:scale(.4);opacity:0}100%{transform:scale(1);opacity:1}}
 #leaderboard ul{list-style:none;padding:0;margin:.4em auto;width:85%}
 #leaderboard li{display:flex;justify-content:space-between;padding:4px 6px;margin:4px 0;
   background:rgba(255,255,255,.12);border-radius:4px}
 footer{margin:2em 0 1em;font-size:.85em;color:#aaa}
-/* intro overlay */
 #intro{position:fixed;inset:0;background:rgba(0,0,0,.87);color:#fff;
   display:flex;flex-direction:column;align-items:center;justify-content:center;
   padding:1.6em;z-index:999}
@@ -78,15 +71,21 @@ const board=document.getElementById("board"),msg=document.getElementById("msg"),
       bgm=document.getElementById("bgm"),musicBtn=document.getElementById("musicBtn"),
       playBtn=document.getElementById("playBtn"),intro=document.getElementById("intro"),
       againBtn=document.getElementById("againBtn"),cvs=document.getElementById("cvs"),
-      ctx=cvs.getContext("2d"),movesEl=moves,timeEl=time,scoreEl=score,
+      ctx=cvs.getContext("2d"),
+      movesEl=document.getElementById("moves"),
+      timeEl=document.getElementById("time"),
+      scoreEl=document.getElementById("score"),
       deltas=[[2,1],[2,-1],[-2,1],[-2,-1],[1,2],[1,-2],[-1,2],[-1,-2]];
+/* state */
 let knight=[0,0],goal=[7,7],obs=new Set(),mv=0,sec=0,score=1000,timer,music=false;
+/* helpers */
 const key=(x,y)=>`${x},${y}`;
 function randObs(n){obs.clear();
   while(obs.size<n){const x=Math.random()*8|0,y=Math.random()*8|0;
     if(key(x,y)!==key(...knight)&&key(x,y)!==key(...goal))obs.add(key(x,y));}}
 function updScore(){movesEl.textContent=mv;timeEl.textContent=sec;
   score=Math.max(0,1000-(mv*5+sec*3));scoreEl.textContent=score;}
+/* board */
 function draw(){
   board.innerHTML="";
   for(let r=0;r<8;r++)for(let c=0;c<8;c++){
@@ -97,7 +96,8 @@ function draw(){
     else if(key(c,r)===key(...goal))sq.classList.add("goal");
     else if(obs.has(key(c,r)))sq.classList.add("obstacle");
     sq.onclick=()=>attempt(c,r);board.appendChild(sq);}
-  hints();}
+  hints();
+}
 function hints(){
   document.querySelectorAll(".square").forEach(s=>s.removeAttribute("data-valid"));
   deltas.forEach(([dx,dy])=>{
@@ -106,6 +106,7 @@ function hints(){
       document.querySelector(`.square[data-row="${y}"][data-col="${x}"]`)
         ?.setAttribute("data-valid","true");}});
 }
+/* gameplay */
 function attempt(x,y){
   if(!deltas.some(([dx,dy])=>knight[0]+dx===x&&knight[1]+dy===y)||obs.has(key(x,y))){
     msg.textContent="Oops! Knights move in Ls!";return;}
@@ -124,7 +125,9 @@ function confetti(){
   (function tick(){ctx.clearRect(0,0,cvs.width,cvs.height);
     pcs.forEach(p=>{ctx.fillStyle=p.c;ctx.fillRect(p.x,p.y,p.s,p.s);
       p.x+=p.dx;p.y+=p.dy;if(p.y>cvs.height)p.y=-10});
-    if(f++<180)requestAnimationFrame(tick);else cvs.hidden=true;})();}
+    if(f++<180)requestAnimationFrame(tick);else cvs.hidden=true;})();
+}
+/* leaderboard */
 function saveScore(){
   const list=JSON.parse(localStorage.kqScores||"[]");
   list.push({score,time:sec,moves:mv,date:new Date().toLocaleDateString()});
@@ -134,9 +137,11 @@ function loadScores(){
   JSON.parse(localStorage.kqScores||"[]").forEach(s=>{
     const li=document.createElement("li");
     li.innerHTML=`<span>${s.score} pts</span><span>${s.date}</span>`;ul.appendChild(li);});}
+/* music */
 function toggleMusic(){music=!music;
   if(music){bgm.play();musicBtn.textContent="Music On";}
   else{bgm.pause();musicBtn.textContent="Music Off";}}
+/* reset */
 function resetGame(){
   againBtn.style.display="none";randObs(10);mv=sec=0;updScore();
   clearInterval(timer);timer=setInterval(()=>{sec++;updScore()},1000);
