@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Knight's Quest – Chess Queen's Club</title>
+  <title>Knight's Quest – Chess Queen’s Club</title>
   <meta name="theme-color" content="#1a1a2e" />
   <style>
     body {
@@ -31,17 +31,6 @@
       position: relative;
       width: 100%;
       height: 100%;
-    }
-    .square[data-valid="true"]::after {
-      content: '';
-      position: absolute;
-      width: 20%;
-      height: 20%;
-      background-color: rgba(46, 204, 113, 0.7);
-      border-radius: 50%;
-      top: 40%;
-      left: 40%;
-      z-index: 1;
     }
     .light { background-color: #d2b48c; }
     .dark { background-color: #8b4513; }
@@ -71,14 +60,6 @@
       color: white;
       border: none;
       border-radius: 5px;
-      cursor: pointer;
-    }
-    button:hover {
-      background-color: #2980b9;
-    }
-    #difficulty-buttons button.active {
-      background-color: #27ae60;
-      font-weight: bold;
     }
     footer {
       margin-top: 2em;
@@ -86,18 +67,6 @@
       color: #aaa;
     }
     #leaderboard { font-size: 0.9em; }
-    #topScores {
-      list-style-type: none;
-      padding: 0;
-    }
-    #topScores li {
-      padding: 5px;
-      margin: 5px 0;
-      background-color: rgba(255, 255, 255, 0.1);
-      border-radius: 5px;
-      display: flex;
-      justify-content: space-between;
-    }
     #confetti-canvas {
       position: fixed;
       top: 0; left: 0;
@@ -106,81 +75,23 @@
       pointer-events: none;
       z-index: 999;
     }
-    .tutorial {
-      background-color: rgba(0, 0, 0, 0.8);
-      color: white;
-      position: fixed;
-      top: 0;
-      left: 0;
-      width: 100%;
-      height: 100%;
-      display: flex;
-      flex-direction: column;
-      justify-content: center;
-      align-items: center;
-      z-index: 1000;
-    }
-    .tutorial-content {
-      max-width: 80%;
-      text-align: center;
-    }
-    .difficulty-label {
-      display: block;
-      margin-top: 10px;
-      font-weight: bold;
-    }
   </style>
 </head>
 <body>
   <h1>Knight's Quest</h1>
   <div id="scoreboard">Moves: <span id="moves">0</span> | Time: <span id="time">0</span>s | Score: <span id="score">1000</span></div>
-  
-  <div>
-    <button onclick="resetGame()">Restart</button>
-    <button onclick="toggleMusic()" id="musicToggle">Music: Off</button>
-    <button onclick="showTutorial()">Help</button>
-  </div>
-  
-  <div id="difficulty-buttons">
-    <span class="difficulty-label">Difficulty:</span>
-    <button onclick="setDifficulty('easy')" class="active">Easy</button>
-    <button onclick="setDifficulty('medium')">Medium</button>
-    <button onclick="setDifficulty('hard')">Hard</button>
-  </div>
-  
+  <button onclick="resetGame()">Restart</button>
+  <button onclick="toggleMusic()">Music: On</button>
   <div id="board" role="grid"></div>
   <div id="message">Help the knight reach the golden square!</div>
-  
-  <div id="leaderboard">
-    <strong>Top Scores:</strong>
-    <ul id="topScores"></ul>
-  </div>
-  
-  <footer>© 2025 Chess Queen's Club ♛</footer>
-  
   <canvas id="confetti-canvas"></canvas>
-  
+  <div id="leaderboard"><strong>Top Scores:</strong><ul id="topScores"></ul></div>
+  <footer>© 2025 Chess Queen’s Club ♛</footer>
   <audio id="moveSound" src="data:audio/wav;base64,UklGRiQAAABXQVZFZm10IBAAAAABAAEAESsAACJWAAACABAAZGF0YQAAAAA="></audio>
   <audio id="winSound" src="data:audio/wav;base64,UklGRiQAAABXQVZFZm10IBAAAAABAAEAESsAACJWAAACABAAZGF0YQAAAAA="></audio>
   <audio id="errorSound" src="data:audio/wav;base64,UklGRiQAAABXQVZFZm10IBAAAAABAAEAESsAACJWAAACABAAZGF0YQAAAAA="></audio>
   <audio id="bgMusic" src="data:audio/wav;base64,UklGRiQAAABXQVZFZm10IBAAAAABAAEAESsAACJWAAACABAAZGF0YQAAAAA=" loop></audio>
-  
   <script>
-    // Wait for DOM to be fully loaded
-    document.addEventListener('DOMContentLoaded', function() {
-      init();
-    });
-
-    function init() {
-      // Set canvas size
-      canvas.width = window.innerWidth;
-      canvas.height = window.innerHeight;
-      
-      // Initialize game
-      resetGame();
-      updateLeaderboard();
-    }
-    
     const board = document.getElementById("board");
     const moveSound = document.getElementById("moveSound");
     const winSound = document.getElementById("winSound");
@@ -190,162 +101,48 @@
     const ctx = canvas.getContext("2d");
 
     let knightPos = [0, 0], goalPos = [7, 7], obstacles = new Set();
-    let moves = 0, time = 0, score = 1000, musicOn = false, timer = null;
-    let difficulty = 'easy'; // Default difficulty
-    let boardSize = 8; // Default board size
+    let moves = 0, time = 0, score = 1000, musicOn = true, timer = null;
 
     const knightMoves = [[2,1],[2,-1],[-2,1],[-2,-1],[1,2],[1,-2],[-1,2],[-1,-2]];
 
     function resetGame() {
-      // Set board parameters based on difficulty
-      if (difficulty === 'easy') {
-        boardSize = 5;
-        goalPos = [4, 4];
-        knightPos = [0, 0];
-        obstacles.clear();
-        while (obstacles.size < 3) {
-          let x = Math.floor(Math.random() * boardSize), y = Math.floor(Math.random() * boardSize);
-          if ((x !== knightPos[0] || y !== knightPos[1]) && (x !== goalPos[0] || y !== goalPos[1])) {
-            obstacles.add(`${x},${y}`);
-          }
-        }
-      } else if (difficulty === 'medium') {
-        boardSize = 6;
-        goalPos = [5, 5];
-        knightPos = [0, 0];
-        obstacles.clear();
-        while (obstacles.size < 6) {
-          let x = Math.floor(Math.random() * boardSize), y = Math.floor(Math.random() * boardSize);
-          if ((x !== knightPos[0] || y !== knightPos[1]) && (x !== goalPos[0] || y !== goalPos[1])) {
-            obstacles.add(`${x},${y}`);
-          }
-        }
-      } else { // hard
-        boardSize = 8;
-        goalPos = [7, 7];
-        knightPos = [0, 0]; 
-        obstacles.clear();
-        while (obstacles.size < 10) {
-          let x = Math.floor(Math.random() * boardSize), y = Math.floor(Math.random() * boardSize);
-          if ((x !== knightPos[0] || y !== knightPos[1]) && (x !== goalPos[0] || y !== goalPos[1])) {
-            obstacles.add(`${x},${y}`);
-          }
-        }
+      knightPos = [0, 0]; moves = 0; time = 0;
+      score = 1000; obstacles.clear();
+      while (obstacles.size < 10) {
+        let x = Math.floor(Math.random() * 8), y = Math.floor(Math.random() * 8);
+        if ((x !== 0 || y !== 0) && (x !== 7 || y !== 7)) obstacles.add(`${x},${y}`);
       }
-      
-      // Reset game state
-      moves = 0; 
-      time = 0;
-      score = 1000; 
-      
-      // Clear previous timer and set a new one
       clearInterval(timer);
-      timer = setInterval(() => { 
-        time++; 
-        updateScore(); 
-      }, 1000);
-      
-      updateScore(); 
-      drawBoard();
-      showValidMoves();
+      timer = setInterval(() => { time++; updateScore(); }, 1000);
+      updateScore(); drawBoard();
     }
 
     function drawBoard() {
-      // Clear the board
       board.innerHTML = "";
-      
-      // Update grid template based on board size
-      board.style.gridTemplateColumns = `repeat(${boardSize}, 1fr)`;
-      board.style.gridTemplateRows = `repeat(${boardSize}, 1fr)`;
-      
-      // Create squares
-      for (let r = 0; r < boardSize; r++) {
-        for (let c = 0; c < boardSize; c++) {
+      for (let r = 0; r < 8; r++) {
+        for (let c = 0; c < 8; c++) {
           let sq = document.createElement("div");
           sq.className = "square " + ((r + c) % 2 === 0 ? "light" : "dark");
-          sq.dataset.row = r; 
-          sq.dataset.col = c;
-          
-          // Add content to squares
-          if (knightPos[0] === c && knightPos[1] === r) {
-            sq.innerHTML = "<div class='knight'></div>";
-          } else if (goalPos[0] === c && goalPos[1] === r) {
-            sq.innerHTML = "<div class='goal'></div>";
-          } else if (obstacles.has(`${c},${r}`)) {
-            sq.innerHTML = "<div class='obstacle'></div>";
-          }
-          
-          // Add click event
+          sq.dataset.row = r; sq.dataset.col = c;
+          if (knightPos[0] === c && knightPos[1] === r) sq.innerHTML = "<div class='knight'></div>";
+          else if (goalPos[0] === c && goalPos[1] === r) sq.innerHTML = "<div class='goal'></div>";
+          else if (obstacles.has(`${c},${r}`)) sq.innerHTML = "<div class='obstacle'></div>";
           sq.onclick = () => attemptMove(c, r);
-          
-          // Add square to board
           board.appendChild(sq);
         }
       }
-    }
-    
-    // Show valid knight moves
-    function showValidMoves() {
-      // First reset all squares
-      document.querySelectorAll('.square').forEach(sq => {
-        sq.setAttribute('data-valid', 'false');
-      });
-      
-      // Calculate and mark valid moves
-      knightMoves.forEach(([dx, dy]) => {
-        const newX = knightPos[0] + dx;
-        const newY = knightPos[1] + dy;
-        
-        // Check if the move is within board boundaries
-        if (newX >= 0 && newX < boardSize && newY >= 0 && newY < boardSize) {
-          // Check if there's no obstacle
-          if (!obstacles.has(`${newX},${newY}`)) {
-            const targetSquare = document.querySelector(`.square[data-row="${newY}"][data-col="${newX}"]`);
-            if (targetSquare) {
-              targetSquare.setAttribute('data-valid', 'true');
-            }
-          }
-        }
-      });
     }
 
     function attemptMove(x, y) {
       const dx = x - knightPos[0], dy = y - knightPos[1];
       const valid = knightMoves.some(([a,b]) => dx === a && dy === b);
-      
       if (valid && !obstacles.has(`${x},${y}`)) {
-        // Valid move
-        knightPos = [x, y]; 
-        moves++; 
-        
-        // Play sound if available
-        try {
-          moveSound.play().catch(e => console.log("Sound play error:", e));
-        } catch (e) {
-          console.log("Sound error:", e);
-        }
-        
-        updateScore(); 
-        drawBoard();
-        showValidMoves();
-        
+        knightPos = [x, y]; moves++; moveSound.play(); updateScore(); drawBoard();
         document.getElementById("message").textContent = "Nice move!";
-        document.getElementById("message").style.color = "#27ae60";
-        
-        // Check if reached goal
-        if (x === goalPos[0] && y === goalPos[1]) {
-          winGame();
-        }
+        if (x === goalPos[0] && y === goalPos[1]) winGame();
       } else {
-        // Invalid move
-        try {
-          errorSound.play().catch(e => console.log("Sound play error:", e));
-        } catch (e) {
-          console.log("Sound error:", e);
-        }
-        
+        errorSound.play();
         document.getElementById("message").textContent = "Oops! Knights move in L-shapes!";
-        document.getElementById("message").style.color = "#e74c3c";
       }
     }
 
@@ -357,227 +154,64 @@
     }
 
     function winGame() {
-      clearInterval(timer);
-      
-      try {
-        winSound.play().catch(e => console.log("Sound play error:", e));
-      } catch (e) {
-        console.log("Sound error:", e);
-      }
-      
-      document.getElementById("message").textContent = "You reached the goal! Great job!";
-      document.getElementById("message").style.color = "#f1c40f";
-      saveScore(score); 
-      updateLeaderboard(); 
-      launchConfetti();
+      clearInterval(timer); winSound.play();
+      document.getElementById("message").textContent = "You reached the goal!";
+      saveScore(score); updateLeaderboard(); launchConfetti();
     }
 
     function toggleMusic() {
       musicOn = !musicOn;
-      
-      try {
-        if (musicOn) {
-          bgMusic.play().catch(e => {
-            console.log("Music play error:", e);
-            musicOn = false;
-          });
-        } else {
-          bgMusic.pause();
-        }
-      } catch (e) {
-        console.log("Music error:", e);
-        musicOn = false;
-      }
-      
-      document.getElementById("musicToggle").textContent = musicOn ? "Music: On" : "Music: Off";
-    }
-    
-    function setDifficulty(level) {
-      // Set difficulty and update UI
-      difficulty = level;
-      
-      // Update active button
-      document.querySelectorAll('#difficulty-buttons button').forEach(btn => {
-        btn.classList.remove('active');
-      });
-      document.querySelector(`button[onclick="setDifficulty('${level}')"]`).classList.add('active');
-      
-      // Reset game for new difficulty
-      resetGame();
-    }
-    
-    function showTutorial() {
-      // Create tutorial overlay
-      const tutorial = document.createElement('div');
-      tutorial.className = 'tutorial';
-      tutorial.innerHTML = `
-        <div class="tutorial-content">
-          <h2>How to Play Knight's Quest</h2>
-          <p>The knight moves in an L-shape pattern: 2 squares in one direction and then 1 square perpendicular.</p>
-          <p>Green dots show where you can move.</p>
-          <p>Avoid the red triangles and reach the golden square!</p>
-          <button id="close-tutorial">Got it!</button>
-        </div>
-      `;
-      document.body.appendChild(tutorial);
-      
-      // Add close button functionality
-      document.getElementById('close-tutorial').addEventListener('click', function() {
-        tutorial.remove();
-      });
+      musicOn ? bgMusic.play() : bgMusic.pause();
+      event.target.textContent = musicOn ? "Music: On" : "Music: Off";
     }
 
     function saveScore(s) {
       const scores = JSON.parse(localStorage.getItem("kq_scores") || "[]");
-      scores.push({ 
-        score: s, 
-        date: new Date().toLocaleString(),
-        difficulty: difficulty,
-        moves: moves,
-        time: time
-      });
+      scores.push({ score: s, date: new Date().toLocaleString() });
       scores.sort((a,b) => b.score - a.score);
-      localStorage.setItem("kq_scores", JSON.stringify(scores.slice(0,10)));
+      localStorage.setItem("kq_scores", JSON.stringify(scores.slice(0,5)));
     }
 
     function updateLeaderboard() {
       const scores = JSON.parse(localStorage.getItem("kq_scores") || "[]");
       const list = document.getElementById("topScores");
       list.innerHTML = "";
-      
-      if (scores.length === 0) {
-        // Show message if no scores yet
+      scores.forEach(s => {
         const li = document.createElement("li");
-        li.textContent = "Complete the game to add your score!";
+        li.textContent = `${s.score} – ${s.date}`;
         list.appendChild(li);
-      } else {
-        // Display scores with difficulty level
-        scores.slice(0, 10).forEach(s => {
-          const li = document.createElement("li");
-          const difficultyName = s.difficulty ? s.difficulty.charAt(0).toUpperCase() + s.difficulty.slice(1) : "Easy";
-          
-          const scoreSpan = document.createElement("span");
-          scoreSpan.textContent = `${s.score} pts (${difficultyName})`;
-          
-          const dateSpan = document.createElement("span");
-          dateSpan.textContent = s.date;
-          
-          li.appendChild(scoreSpan);
-          li.appendChild(dateSpan);
-          list.appendChild(li);
-        });
-      }
+      });
     }
 
     function launchConfetti() {
-      // Resize canvas to window dimensions
       canvas.width = window.innerWidth;
       canvas.height = window.innerHeight;
-      
-      // Create confetti pieces with different shapes
-      const pieces = Array.from({ length: 200 }, () => {
-        const type = Math.floor(Math.random() * 3); // 0: square, 1: circle, 2: star
-        return {
-          x: Math.random() * canvas.width,
-          y: Math.random() * -canvas.height,
-          dx: (Math.random() - 0.5) * 8,
-          dy: Math.random() * 5 + 2,
-          size: Math.random() * 10 + 5,
-          color: `hsl(${Math.random() * 360}, 100%, 70%)`,
-          rotation: Math.random() * 360,
-          rotationSpeed: (Math.random() - 0.5) * 4,
-          type: type
-        };
-      });
-      
+      const pieces = Array.from({ length: 150 }, () => ({
+        x: Math.random() * canvas.width,
+        y: Math.random() * -canvas.height,
+        dx: (Math.random() - 0.5) * 8,
+        dy: Math.random() * 5 + 2,
+        size: Math.random() * 6 + 4,
+        color: `hsl(${Math.random() * 360}, 100%, 70%)`
+      }));
       let frame = 0;
       function draw() {
         ctx.clearRect(0, 0, canvas.width, canvas.height);
-        
         pieces.forEach(p => {
-          ctx.save();
-          ctx.translate(p.x, p.y);
-          ctx.rotate((p.rotation * Math.PI) / 180);
           ctx.fillStyle = p.color;
-          
-          // Draw different shapes based on type
-          if (p.type === 0) {
-            // Square
-            ctx.fillRect(-p.size / 2, -p.size / 2, p.size, p.size);
-          } else if (p.type === 1) {
-            // Circle
-            ctx.beginPath();
-            ctx.arc(0, 0, p.size / 2, 0, Math.PI * 2);
-            ctx.fill();
-          } else {
-            // Star
-            drawStar(ctx, 0, 0, 5, p.size / 2, p.size / 4);
-            ctx.fill();
-          }
-          
-          ctx.restore();
-          
-          // Update position
+          ctx.fillRect(p.x, p.y, p.size, p.size);
           p.x += p.dx;
           p.y += p.dy;
-          p.rotation += p.rotationSpeed;
-          
-          // Reset particles that go off screen
-          if (p.y > canvas.height) {
-            p.y = Math.random() * -100;
-            p.x = Math.random() * canvas.width;
-          }
-          
-          // Bounce off sides
-          if (p.x < 0 || p.x > canvas.width) {
-            p.dx *= -0.8;
-          }
+          if (p.y > canvas.height) p.y = -10;
         });
-        
-        if (frame++ < 250) requestAnimationFrame(draw);
+        if (frame++ < 200) requestAnimationFrame(draw);
       }
-      
-      // Helper function to draw star
-      function drawStar(ctx, cx, cy, spikes, outerRadius, innerRadius) {
-        let rot = Math.PI / 2 * 3;
-        let x = cx;
-        let y = cy;
-        let step = Math.PI / spikes;
-        
-        ctx.beginPath();
-        ctx.moveTo(cx, cy - outerRadius);
-        
-        for (let i = 0; i < spikes; i++) {
-          x = cx + Math.cos(rot) * outerRadius;
-          y = cy + Math.sin(rot) * outerRadius;
-          ctx.lineTo(x, y);
-          rot += step;
-          
-          x = cx + Math.cos(rot) * innerRadius;
-          y = cy + Math.sin(rot) * innerRadius;
-          ctx.lineTo(x, y);
-          rot += step;
-        }
-        
-        ctx.lineTo(cx, cy - outerRadius);
-        ctx.closePath();
-      }
-      
-      // Start animation
       draw();
     }
 
-    // Initialize the game when window loads
     window.onload = () => {
-      // Set canvas size
-      canvas.width = window.innerWidth;
-      canvas.height = window.innerHeight;
-      
-      // Initialize leaderboard 
       updateLeaderboard();
-      
-      // Start the game
-      resetGame();
+      drawBoard();
     };
   </script>
 </body>
