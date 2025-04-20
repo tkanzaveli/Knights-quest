@@ -2,41 +2,44 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Knight’s Quest – Chess Queen’s Club</title>
 <meta name="theme-color" content="#1a1a2e">
 <style>
-/* ----------  core layout  ---------- */
 :root{
   --gold:#f1c40f;--red:#e74c3c;--green:#2ecc71;
   --light:#d2b48c;--dark:#8b4513;--blue:#3498db;
 }
-body{margin:0;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;
+*{box-sizing:border-box}
+body{margin:0;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;
      background:#1a1a2e;color:var(--gold);text-align:center}
-h1{margin:.6em 0 .2em;font-size:2em}
-button{margin:.3em;padding:.5em 1em;font-size:1em;background:var(--blue);color:#fff;
+h1{margin:.6em 0 .2em;font-size:2em}
+#scoreboard,#msg{margin:.5em}
+button{margin:.3em;padding:.5em 1em;font-size:1em;background:var(--blue);color:#fff;
        border:0;border-radius:6px;cursor:pointer}
 button:hover{background:#2980b9}
 #board{display:grid;grid-template:repeat(8,1fr)/repeat(8,1fr);
-       width:min(90vmin,420px);aspect-ratio:1;margin:1em auto;border:4px solid var(--gold)}
+       width:min(90vmin,420px);aspect-ratio:1;margin:1em auto;border:4px solid var(--gold)}
 .square{position:relative;width:100%;height:100%}
 .light{background:var(--light)}.dark{background:var(--dark)}
-/* ----------  pieces & hints  ---------- */
-.knight svg{width:75%;height:75%;position:absolute;top:12%;left:12%}
+/* knight container */
+.knight{display:flex;align-items:center;justify-content:center;width:100%;height:100%;animation:pop .25s}
+.knight svg{width:70%;height:70%;fill:#000}
+/* goal */
 .goal{background:var(--gold)}
 .goal::after{content:"🏰";font-size:1.7rem;position:absolute;top:18%;left:32%}
-.obstacle{background:var(--red);clip-path:polygon(50% 0,100% 100%,0 100%)}
+/* obstacles */
+.obstacle{background:var(--red);clip-path:polygon(50% 0,100% 100%,0 100%)}
+/* move hints */
 .square[data-valid="true"]::after{
-  content:"";position:absolute;inset:40% 40%;border-radius:50%;
+  content:"";position:absolute;inset:40% 40%;border-radius:50%;
   background:rgba(46,204,113,.7)}
-/* ----------  leaderboard  ---------- */
-#leaderboard ul{list-style:none;padding:0;margin:.4em auto;width:85%}
+/* leaderboard */
+#leaderboard ul{list-style:none;padding:0;margin:.4em auto;width:85%}
 #leaderboard li{display:flex;justify-content:space-between;
-  padding:4px 6px;margin:4px 0;background:rgba(255,255,255,.12);border-radius:4px}
-footer{margin:2em 0 1em;font-size:.85em;color:#aaa}
-/* ----------  fun  ---------- */
+  padding:4px 6px;margin:4px 0;background:rgba(255,255,255,.12);border-radius:4px}
+footer{margin:2em 0 1em;font-size:.85em;color:#aaa}
 @keyframes pop{0%{transform:scale(.4);opacity:0}100%{transform:scale(1);opacity:1}}
-.knight{animation:pop .25s ease}
 </style>
 </head>
 <body>
@@ -51,7 +54,7 @@ footer{margin:2em 0 1em;font-size:.85em;color:#aaa}
   <button id="musicBtn" onclick="toggleMusic()">Music Off</button>
 </div>
 
-<div id="board" aria-label="8 × 8 chessboard"></div>
+<div id="board" aria-label="8×8 chessboard"></div>
 <p id="msg">Help the knight reach the castle!</p>
 
 <section id="leaderboard">
@@ -60,23 +63,20 @@ footer{margin:2em 0 1em;font-size:.85em;color:#aaa}
 </section>
 
 <canvas id="confetti" hidden></canvas>
-
-<!-- background‑music (CC0 loop) -->
 <audio id="bgm" src="https://cdn.pixabay.com/download/audio/2022/03/15/audio_c5a82a6d5a.mp3?filename=adventure-theme-141631.mp3" loop></audio>
 
 <script>
-/* =======  constants  ======= */
+/* ==== constants ==== */
 const boardEl=document.getElementById("board"),
       msg=document.getElementById("msg"),
       bgm=document.getElementById("bgm"),
       musicBtn=document.getElementById("musicBtn"),
-      knightSvg=`<svg viewBox="0 0 45 45" xmlns="http://www.w3.org/2000/svg" fill="#000">
-        <path d="M22 10c-4 0-9 7-9 10v2h-3v7h30v-5l-2-4h2V7H23z"/>
-      </svg>`;
+      knightSVG=`<svg viewBox="0 0 45 45" xmlns="http://www.w3.org/2000/svg">
+        <path d="M22 9c-4 0-9 7-9 10v3h-4v7h31v-5l-3-5h3V8H23z"/></svg>`;
 const movesArr=[[2,1],[2,-1],[-2,1],[-2,-1],[1,2],[1,-2],[-1,2],[-1,-2]];
-/* =======  state  ======= */
+/* ==== state ==== */
 let knight=[0,0],goal=[7,7],obs=new Set(),mv=0,sec=0,score=1000,timer=null,music=false;
-/* =======  helpers  ======= */
+/* ==== helpers ==== */
 const id=(x,y)=>`${x},${y}`;
 function randObs(n){
   obs.clear();
@@ -86,90 +86,82 @@ function randObs(n){
   }
 }
 function updScore(){
-  document.getElementById("moves").textContent=mv;
-  document.getElementById("time").textContent=sec;
-  score=Math.max(0,1000-(mv*5+sec*3));
-  document.getElementById("score").textContent=score;
+  moves.textContent=mv;time.textContent=sec;
+  score=Math.max(0,1000-(mv*5+sec*3));document.getElementById("score").textContent=score;
 }
-/* =======  board drawing  ======= */
+/* ==== board ==== */
 function draw(){
   boardEl.innerHTML="";
   for(let r=0;r<8;r++)for(let c=0;c<8;c++){
     const sq=document.createElement("div");
     sq.className="square "+((r+c)%2?"dark":"light");
     sq.dataset.row=r;sq.dataset.col=c;
-    if(id(c,r)===id(...knight))sq.innerHTML=`<div class="knight">${knightSvg}</div>`;
+    if(id(c,r)===id(...knight))sq.innerHTML=`<div class="knight">${knightSVG}</div>`;
     else if(id(c,r)===id(...goal))sq.classList.add("goal");
-    else if(obs.has(id(c,r)))sq.className+=" obstacle";
-    sq.onclick=()=>move(c,r);
+    else if(obs.has(id(c,r)))sq.classList.add("obstacle");
+    sq.onclick=()=>doMove(c,r);
     boardEl.appendChild(sq);
   }
   showHints();
 }
 function showHints(){
   document.querySelectorAll(".square").forEach(s=>s.removeAttribute("data-valid"));
-  for(const [dx,dy] of movesArr){
+  movesArr.forEach(([dx,dy])=>{
     const [x,y]=[knight[0]+dx,knight[1]+dy];
     if(x>=0&&x<8&&y>=0&&y<8&&!obs.has(id(x,y))){
-      document.querySelector(`.square[data-row="${y}"][data-col="${x}"]`)?.setAttribute("data-valid","true");
+      document.querySelector(`.square[data-row="${y}"][data-col="${x}"]`)
+        ?.setAttribute("data-valid","true");
     }
-  }
+  });
 }
-/* =======  gameplay  ======= */
-function move(x,y){
+/* ==== gameplay ==== */
+function doMove(x,y){
   const legal=movesArr.some(([dx,dy])=>knight[0]+dx===x&&knight[1]+dy===y);
-  if(!legal||obs.has(id(x,y))){msg.textContent="Oops! Knights move in Ls!";return;}
+  if(!legal||obs.has(id(x,y))){
+    msg.textContent=["Oops! L‑shape!","Try the knight jump!","Not quite!"][Math.floor(Math.random()*3)];
+    return;
+  }
   knight=[x,y];mv++;updScore();draw();
-  msg.textContent=["Great jump!","Nice move!","Good job!"][mv%3];
+  msg.textContent=["Great jump!","Nice move!","You’re brave!"][mv%3];
   if(id(...knight)===id(...goal))win();
 }
 function win(){
   clearInterval(timer);
-  msg.textContent="Huzzah! You reached the castle!";
-  playConfetti();
-  saveScore();
-  loadScores();
+  msg.textContent="Huzzah! Castle reached!";
+  confetti();saveScore();loadScores();
 }
-/* =======  confetti  ======= */
-function playConfetti(){
-  const cvs=document.getElementById("confetti");
-  cvs.hidden=false;cvs.width=innerWidth;cvs.height=innerHeight;
-  const ctx=cvs.getContext("2d"),pieces=Array.from({length:120},()=>({
+/* ==== confetti ==== */
+function confetti(){
+  const cvs=document.getElementById("confetti");cvs.hidden=false;
+  cvs.width=innerWidth;cvs.height=innerHeight;const ctx=cvs.getContext("2d");
+  const pcs=[...Array(120)].map(()=>({
     x:Math.random()*cvs.width,y:Math.random()*-cvs.height,
     dx:(Math.random()-.5)*4,dy:Math.random()*4+2,
     s:Math.random()*6+4,c:`hsl(${Math.random()*360},100%,70%)`
-  }));
-  let frames=0;
-  (function anim(){
+  }));let f=0;!function anim(){
     ctx.clearRect(0,0,cvs.width,cvs.height);
-    pieces.forEach(p=>{ctx.fillStyle=p.c;ctx.fillRect(p.x,p.y,p.s,p.s);
+    pcs.forEach(p=>{ctx.fillStyle=p.c;ctx.fillRect(p.x,p.y,p.s,p.s);
       p.x+=p.dx;p.y+=p.dy;if(p.y>cvs.height)p.y=-10});
-    if(frames++<180)requestAnimationFrame(anim);
-    else cvs.hidden=true;
-  })();
+    if(f++<180)requestAnimationFrame(anim);else cvs.hidden=true;}();
 }
-/* =======  leaderboard  ======= */
+/* ==== leaderboard ==== */
 function saveScore(){
   const list=JSON.parse(localStorage.kqScores||"[]");
   list.push({score,time:sec,moves:mv,date:new Date().toLocaleDateString()});
-  list.sort((a,b)=>b.score-a.score);
-  localStorage.kqScores=JSON.stringify(list.slice(0,5));
+  list.sort((a,b)=>b.score-a.score);localStorage.kqScores=JSON.stringify(list.slice(0,5));
 }
 function loadScores(){
   const list=JSON.parse(localStorage.kqScores||"[]");
   const ul=document.getElementById("topScores");ul.innerHTML="";
-  list.forEach(s=>{
-    const li=document.createElement("li");
-    li.innerHTML=`<span>${s.score} pts</span><span>${s.date}</span>`;
-    ul.appendChild(li);
-  });
+  list.forEach(s=>{const li=document.createElement("li");
+    li.innerHTML=`<span>${s.score} pts</span><span>${s.date}</span>`;ul.appendChild(li)});
 }
-/* =======  music  ======= */
+/* ==== music ==== */
 function toggleMusic(){
   music=!music;if(music){bgm.play();musicBtn.textContent="Music On";}
   else{bgm.pause();musicBtn.textContent="Music Off";}
 }
-/* =======  init  ======= */
+/* ==== init ==== */
 function resetGame(){
   randObs(10);mv=sec=0;updScore();
   clearInterval(timer);timer=setInterval(()=>{sec++;updScore()},1000);
@@ -177,9 +169,6 @@ function resetGame(){
 }
 window.onload=()=>{loadScores();resetGame();}
 </script>
+<footer>© 2025 Chess Queen’s Club ♛</footer>
 </body>
 </html>
-"""
-
-Path(final_knights_quest_path).write_text(final_html_content, encoding="utf-8")
-final_knights_quest_path
