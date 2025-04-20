@@ -23,13 +23,20 @@ button:hover{background:#2980b9}
 .goal::after{content:"🏰";font-size:1.9rem;position:absolute;top:18%;left:30%}
 .square[data-valid]::after{content:"";position:absolute;inset:40%;border-radius:50%;
   background:rgba(46,204,113,.7)}
-.knight{display:flex;align-items:center;justify-content:center;animation:pop .25s}
-.knight svg{width:80%;height:80%;fill:#000;overflow:visible}
+/* cartoon knight */
+.knight{animation:pop .25s ease}
+.knight::after{
+  content:"🐴";
+  position:absolute;top:8%;left:8%;
+  font-size:2.3rem;           /* auto‑scales with square */
+}
+/* smooth pop‑in */
 @keyframes pop{0%{transform:scale(.4);opacity:0}100%{transform:scale(1);opacity:1}}
 #leaderboard ul{list-style:none;padding:0;margin:.4em auto;width:85%}
 #leaderboard li{display:flex;justify-content:space-between;padding:4px 6px;margin:4px 0;
   background:rgba(255,255,255,.12);border-radius:4px}
 footer{margin:2em 0 1em;font-size:.85em;color:#aaa}
+/* intro overlay */
 #intro{position:fixed;inset:0;background:rgba(0,0,0,.87);color:#fff;
   display:flex;flex-direction:column;align-items:center;justify-content:center;
   padding:1.6em;z-index:999}
@@ -62,113 +69,79 @@ footer{margin:2em 0 1em;font-size:.85em;color:#aaa}
 <button id="againBtn" style="display:none" onclick="resetGame()">Play Again</button>
 
 <canvas id="cvs" hidden></canvas>
-<!-- Royalty‑free loop (Pixabay, CC0) -->
 <audio id="bgm" src="https://cdn.pixabay.com/download/audio/2022/03/15/audio_c5a82a6d5a.mp3?filename=adventure-theme-141631.mp3" loop></audio>
 <footer>© 2025 Chess Queen’s Club ♛</footer>
 
 <script>
-/* ===== constants ===== */
+/* constants */
 const board=document.getElementById("board"),msg=document.getElementById("msg"),
       bgm=document.getElementById("bgm"),musicBtn=document.getElementById("musicBtn"),
       playBtn=document.getElementById("playBtn"),intro=document.getElementById("intro"),
       againBtn=document.getElementById("againBtn"),cvs=document.getElementById("cvs"),
-      ctx=cvs.getContext("2d"),
-      movesEl=document.getElementById("moves"),
-      timeEl=document.getElementById("time"),
-      scoreEl=document.getElementById("score"),
-      knightSVG=`<svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg" fill="#000">
-         <path d="M25 20c-8 6-14 13-16 28h10c4 0 6 2 6 5v6H11v35h78V60l-8-13h8V20H44c-4 0-6 1-9 4z"/>
-      </svg>`,
+      ctx=cvs.getContext("2d"),movesEl=moves,timeEl=time,scoreEl=score,
       deltas=[[2,1],[2,-1],[-2,1],[-2,-1],[1,2],[1,-2],[-1,2],[-1,-2]];
-/* ===== state ===== */
 let knight=[0,0],goal=[7,7],obs=new Set(),mv=0,sec=0,score=1000,timer,music=false;
-/* ===== helpers ===== */
 const key=(x,y)=>`${x},${y}`;
 function randObs(n){obs.clear();
   while(obs.size<n){const x=Math.random()*8|0,y=Math.random()*8|0;
     if(key(x,y)!==key(...knight)&&key(x,y)!==key(...goal))obs.add(key(x,y));}}
 function updScore(){movesEl.textContent=mv;timeEl.textContent=sec;
   score=Math.max(0,1000-(mv*5+sec*3));scoreEl.textContent=score;}
-/* ===== board ===== */
 function draw(){
   board.innerHTML="";
   for(let r=0;r<8;r++)for(let c=0;c<8;c++){
     const sq=document.createElement("div");
     sq.className="square "+((r+c)%2?"dark":"light");
     sq.dataset.row=r;sq.dataset.col=c;
-    if(key(c,r)===key(...knight))sq.innerHTML=`<div class="knight">${knightSVG}</div>`;
+    if(key(c,r)===key(...knight))sq.classList.add("knight");
     else if(key(c,r)===key(...goal))sq.classList.add("goal");
     else if(obs.has(key(c,r)))sq.classList.add("obstacle");
-    sq.onclick=()=>attempt(c,r);
-    board.appendChild(sq);
-  }
-  hints();
-}
+    sq.onclick=()=>attempt(c,r);board.appendChild(sq);}
+  hints();}
 function hints(){
   document.querySelectorAll(".square").forEach(s=>s.removeAttribute("data-valid"));
   deltas.forEach(([dx,dy])=>{
     const [x,y]=[knight[0]+dx,knight[1]+dy];
     if(x>=0&&x<8&&y>=0&&y<8&&!obs.has(key(x,y))){
       document.querySelector(`.square[data-row="${y}"][data-col="${x}"]`)
-        ?.setAttribute("data-valid","true");
-    }
-  });
+        ?.setAttribute("data-valid","true");}});
 }
-/* ===== gameplay ===== */
 function attempt(x,y){
   if(!deltas.some(([dx,dy])=>knight[0]+dx===x&&knight[1]+dy===y)||obs.has(key(x,y))){
-    msg.textContent="Oops! Knights move in Ls!";
-    return;
-  }
+    msg.textContent="Oops! Knights move in Ls!";return;}
   knight=[x,y];mv++;updScore();draw();
   msg.textContent=["Great jump!","Nice move!","Bravo!"][mv%3];
-  if(key(...knight)===key(...goal))finish();
-}
+  if(key(...knight)===key(...goal))finish();}
 function finish(){
   clearInterval(timer);againBtn.style.display="inline-block";
-  msg.textContent="Huzzah! Castle reached!";
-  confetti();saveScore();loadScores();
-}
-/* ===== confetti ===== */
+  msg.textContent="Hooray! Castle reached!";confetti();saveScore();loadScores();}
 function confetti(){
   cvs.hidden=false;cvs.width=document.documentElement.clientWidth;
   cvs.height=document.documentElement.clientHeight;
   const pcs=[...Array(120)].map(()=>({x:Math.random()*cvs.width,y:-Math.random()*cvs.height,
-    dx:(Math.random()-.5)*3,dy:Math.random()*3+2,
-    s:Math.random()*6+4,c:`hsl(${Math.random()*360},100%,70%)`}));
-  let f=0;!function anim(){
-    ctx.clearRect(0,0,cvs.width,cvs.height);
+    dx:(Math.random()-.5)*3,dy:Math.random()*3+2,s:Math.random()*6+4,
+    c:`hsl(${Math.random()*360},100%,70%)`}));let f=0;
+  (function tick(){ctx.clearRect(0,0,cvs.width,cvs.height);
     pcs.forEach(p=>{ctx.fillStyle=p.c;ctx.fillRect(p.x,p.y,p.s,p.s);
       p.x+=p.dx;p.y+=p.dy;if(p.y>cvs.height)p.y=-10});
-    if(f++<180)requestAnimationFrame(anim);else cvs.hidden=true;}();
-}
-/* ===== leaderboard ===== */
+    if(f++<180)requestAnimationFrame(tick);else cvs.hidden=true;})();}
 function saveScore(){
   const list=JSON.parse(localStorage.kqScores||"[]");
   list.push({score,time:sec,moves:mv,date:new Date().toLocaleDateString()});
-  list.sort((a,b)=>b.score-a.score);localStorage.kqScores=JSON.stringify(list.slice(0,5));
-}
+  list.sort((a,b)=>b.score-a.score);localStorage.kqScores=JSON.stringify(list.slice(0,5));}
 function loadScores(){
   const ul=document.getElementById("topScores");ul.innerHTML="";
-  JSON.parse(localStorage.kqScores||"[]")
-    .forEach(s=>{const li=document.createElement("li");
-      li.innerHTML=`<span>${s.score} pts</span><span>${s.date}</span>`;ul.appendChild(li)});
-}
-/* ===== music ===== */
-function toggleMusic(){
-  music=!music;if(music){bgm.play();musicBtn.textContent="Music On";}
-  else{bgm.pause();musicBtn.textContent="Music Off";}
-}
-/* ===== init / reset ===== */
+  JSON.parse(localStorage.kqScores||"[]").forEach(s=>{
+    const li=document.createElement("li");
+    li.innerHTML=`<span>${s.score} pts</span><span>${s.date}</span>`;ul.appendChild(li);});}
+function toggleMusic(){music=!music;
+  if(music){bgm.play();musicBtn.textContent="Music On";}
+  else{bgm.pause();musicBtn.textContent="Music Off";}}
 function resetGame(){
   againBtn.style.display="none";randObs(10);mv=sec=0;updScore();
   clearInterval(timer);timer=setInterval(()=>{sec++;updScore()},1000);
-  knight=[0,0];draw();msg.textContent="Help the knight reach the castle!";
-}
-playBtn.onclick=()=>{
-  intro.remove();loadScores();resetGame();
-  /* user tapped, so we can safely toggle music if they press the button */
-};
+  knight=[0,0];draw();msg.textContent="Help the knight reach the castle!";}
+playBtn.onclick=()=>{intro.remove();loadScores();resetGame();};
 </script>
 </body>
 </html>
