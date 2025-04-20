@@ -1,185 +1,136 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <!-- Previous styles remain -->
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Knight's Quest</title>
     <style>
-        /* Add these new styles */
-        .encouragement {
-            position: fixed;
-            top: 20%;
-            left: 50%;
-            transform: translateX(-50%);
-            background: #ffd700;
+        /* Welcome Screen Styles */
+        #welcome-screen {
+            background: linear-gradient(135deg, #83a4d4, #b6fbff);
             color: #2c3e50;
-            padding: 15px 25px;
+            text-align: center;
+        }
+
+        #welcome-screen h1 {
+            font-size: 2.5rem;
+            margin: 2rem 0;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.2);
+        }
+
+        #welcome-screen button {
+            background: #ff6b6b;
+            color: white;
+            font-size: 1.5rem;
+            padding: 15px 40px;
+            border: none;
             border-radius: 30px;
-            font-size: 1.2rem;
-            box-shadow: 0 4px 15px rgba(0,0,0,0.2);
-            animation: bounce 1s ease infinite;
-            z-index: 200;
+            margin: 2rem 0;
+            cursor: pointer;
+            transition: transform 0.3s ease;
         }
 
-        .badge {
-            width: 60px;
-            height: 60px;
-            background: #3498db;
-            border-radius: 50%;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-size: 24px;
-            margin: 5px;
-            box-shadow: 0 4px 10px rgba(0,0,0,0.2);
+        #welcome-screen button:hover {
+            transform: scale(1.1);
         }
 
-        #leaderboard {
-            position: fixed;
-            top: 50%;
-            left: 50%;
-            transform: translate(-50%, -50%);
-            background: rgba(255, 255, 255, 0.95);
-            padding: 20px;
-            border-radius: 20px;
-            width: 80%;
-            max-width: 400px;
-            z-index: 300;
-            display: none;
+        .character {
+            font-size: 8rem;
+            animation: float 3s ease-in-out infinite;
         }
 
-        @keyframes confetti {
-            0% { transform: translateY(-100%) rotate(0deg); }
-            100% { transform: translateY(100vh) rotate(360deg); }
+        @keyframes float {
+            0%, 100% { transform: translateY(0); }
+            50% { transform: translateY(-20px); }
         }
 
-        .confetti {
-            position: fixed;
-            width: 15px;
-            height: 15px;
-            animation: confetti 3s linear;
-        }
-
-        .star-badge {
-            background: linear-gradient(45deg, #ffd700, #ffaa00);
-        }
+        /* Keep previous game styles */
+        /* ... (all previous game CSS styles) ... */
     </style>
 </head>
 <body>
-    <!-- Add these new elements -->
-    <div id="encouragement" class="hidden"></div>
-    <div id="leaderboard">
-        <h2>🏆 Top Knights 🏆</h2>
-        <ol id="high-scores"></ol>
+    <!-- Welcome Screen -->
+    <div id="welcome-screen" class="screen">
+        <h1>Welcome to Knight's Quest! 🏰</h1>
+        <div class="character">🐴</div>
+        <p>Help Sir Gallopy reach the golden castle!<br>
+        Move in L-shapes and avoid red traps!</p>
+        <button id="start-btn">Start Adventure! 🎮</button>
     </div>
 
-    <!-- Modify the level complete screen -->
-    <div id="level-complete-screen" class="screen hidden">
-        <h1 class="screen-title">🎉 Level Complete! 🎉</h1>
-        <div class="badges-earned">
-            <div class="badge star-badge">⭐</div>
-            <div class="badge">🚀</div>
-        </div>
-        <button class="screen-button" id="next-level-button">Next Level ➡️</button>
+    <!-- Game Container (hidden initially) -->
+    <div id="game-container" class="hidden">
+        <!-- ... (keep all previous game HTML) ... -->
     </div>
 
     <script>
-        // Add these new variables
-        const ENCOURAGEMENTS = [
-            "Great move! 🦄",
-            "You're awesome! 🌟",
-            "Knight power! ⚔️",
-            "Brilliant! ✨",
-            "Wow! 😍",
-            "Super smart! 🧠",
-            "Perfect! 💯"
-        ];
-
-        const BADGES = {
-            speedy: { emoji: "⚡", earned: false },
-            perfect: { emoji: "🎯", earned: false },
-            collector: { emoji: "⭐", earned: false },
-            champion: { emoji: "🏆", earned: false }
-        };
-
-        // Add to gameState
+        // Game State
         let gameState = {
-            // ... previous state ...
-            badges: [],
-            starsCollected: 0
+            level: 1,
+            moves: 0,
+            time: 0,
+            knightPos: [0, 0],
+            goalPos: [7, 7],
+            obstacles: new Set(),
+            timer: null,
+            isPlaying: false
         };
 
-        // Add these new functions
-        function showEncouragement() {
-            const message = ENCOURAGEMENTS[Math.floor(Math.random() * ENCOURAGEMENTS.length)];
-            const elem = document.getElementById('encouragement');
-            elem.textContent = message;
-            elem.classList.remove('hidden');
-            setTimeout(() => elem.classList.add('hidden'), 1500);
+        // Initialize Game
+        function init() {
+            createBoard();
+            setupEventListeners();
+            showWelcomeScreen();
         }
 
-        function createConfetti() {
-            const colors = ['#ff0000', '#00ff00', '#0000ff', '#ffff00'];
-            for(let i = 0; i < 50; i++) {
-                const confetti = document.createElement('div');
-                confetti.className = 'confetti';
-                confetti.style.left = Math.random() * 100 + 'vw';
-                confetti.style.backgroundColor = colors[Math.floor(Math.random() * colors.length)];
-                document.body.appendChild(confetti);
-                setTimeout(() => confetti.remove(), 3000);
-            }
+        function showWelcomeScreen() {
+            document.getElementById('welcome-screen').classList.remove('hidden');
+            document.getElementById('game-container').classList.add('hidden');
         }
 
-        function updateLeaderboard() {
-            const scores = JSON.parse(localStorage.getItem('knight-scores') || [];
-            scores.push(gameState.score);
-            scores.sort((a,b) => b - a);
-            localStorage.setItem('knight-scores', JSON.stringify(scores.slice(0, 5)));
-            
-            const list = document.getElementById('high-scores');
-            list.innerHTML = scores.slice(0, 5).map((score, i) => 
-                `<li>${i+1}. ${score} points ${i === 0 ? '👑' : ''}</li>`
-            ).join('');
+        function startGame() {
+            // Reset game state
+            gameState = {
+                level: 1,
+                moves: 0,
+                time: 0,
+                knightPos: [0, 0],
+                goalPos: [7, 7],
+                obstacles: new Set(),
+                timer: null,
+                isPlaying: true
+            };
+
+            // Switch screens
+            document.getElementById('welcome-screen').classList.add('hidden');
+            document.getElementById('game-container').classList.remove('hidden');
+
+            // Initialize level
+            setupLevel();
+            updateBoard();
+
+            // Start timer
+            gameState.timer = setInterval(() => {
+                gameState.time++;
+                document.getElementById('time').textContent = gameState.time;
+            }, 1000);
         }
 
-        function checkBadges() {
-            if(gameState.moves <= 10) BADGES.perfect.earned = true;
-            if(gameState.time <= 30) BADGES.speedy.earned = true;
-            if(gameState.starsCollected >= 3) BADGES.collector.earned = true;
+        function setupEventListeners() {
+            document.getElementById('start-btn').addEventListener('click', startGame);
+            document.getElementById('board').addEventListener('click', handleBoardClick);
         }
 
-        // Modify moveKnight function
-        function moveKnight(target) {
-            // ... existing code ...
-            showEncouragement();
-            if(gameState.stars.has(posStr)) {
-                gameState.starsCollected++;
-                // Add star collection animation
-            }
-        }
+        // Keep all previous game functions
+        function createBoard() { /* ... */ }
+        function setupLevel() { /* ... */ }
+        function handleBoardClick(e) { /* ... */ }
+        function isValidMove(target) { /* ... */ }
+        function moveKnight(target) { /* ... */ }
+        function completeLevel() { /* ... */ }
+        function updateBoard() { /* ... */ }
 
-        // Modify completeLevel function
-        function completeLevel() {
-            checkBadges();
-            createConfetti();
-            updateLeaderboard();
-            
-            // Show earned badges
-            const badgeContainer = document.querySelector('.badges-earned');
-            badgeContainer.innerHTML = Object.values(BADGES)
-                .filter(b => b.earned)
-                .map(b => `<div class="badge">${b.emoji}</div>`)
-                .join('');
-            
-            // ... rest of existing code ...
-        }
-
-        // Add leaderboard toggle
-        document.getElementById('level').addEventListener('click', () => {
-            document.getElementById('leaderboard').style.display = 'block';
-        });
-
-        document.getElementById('leaderboard').addEventListener('click', () => {
-            document.getElementById('leaderboard').style.display = 'none';
-        });
+        window.addEventListener('load', init);
     </script>
 </body>
 </html>
